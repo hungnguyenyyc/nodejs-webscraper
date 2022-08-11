@@ -4,9 +4,10 @@ const cheerio = require('cheerio')
 const express = require('express')
 const app = express()
 const cors = require('cors')
+const fs = require('fs');
 app.use(cors())
 
-const url = 'https://www.theguardian.com/uk'
+const url = 'https://www.canada.ca/en/immigration-refugees-citizenship/news/notices.html'
 
 app.get('/', function (req, res) {
     res.json('This is my webscraper')
@@ -15,19 +16,36 @@ app.get('/', function (req, res) {
 app.get('/results', (req, res) => {
     axios(url)
         .then(response => {
+            res.setHeader("Content-Type", "text/html")
             const html = response.data
             const $ = cheerio.load(html)
             const articles = []
-
-            $('.fc-item__title', html).each(function () { //<-- cannot be a function expression
-                const title = $(this).text()
-                const url = $(this).find('a').attr('href')
-                articles.push({
-                    title,
-                    url
-                })
+            let aHtmls = '';
+            $('a', html).each((aIndex, a) => { //<-- cannot be a function expression
+                const text = $(a).text().toLowerCase();
+                if (text.includes('notice') 
+                    && (text.includes('interest to sponsor') || text.includes('parents and grandparents'))) {
+                    var href = $(a).attr('href');
+                    aHtmls = aHtmls.concat(`<li><a href='http://www.canada.ca${href}'>${text}</a></li>`);
+                }
             })
-            res.json(articles)
+            var saved = '';
+            fs.readFile('output.txt', 'utf8', (err, data) => {
+                if (err) {
+                  console.error(err);
+                  return;
+                }
+                saved = data;
+            });
+            if (saved !== aHtmls) {
+                var writer = fs.createWriteStream('output.txt');
+                    response = {
+                    name: '',
+                    id: ''
+                    }
+                writer.write(aHtmls);
+            }
+            res.end(aHtmls);
         }).catch(err => console.log(err))
 
 })
